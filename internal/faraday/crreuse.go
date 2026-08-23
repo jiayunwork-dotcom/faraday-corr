@@ -1,15 +1,13 @@
 package faraday
 
-// lastPenetration holds the Faraday millimetres-per-year from the
-// previous metal. A second CorrosionRate call at the same i_corr
-// must not reuse that leftover when M, n or rho changed.
+// lastPenetration records the Faraday millimetres-per-year from the
+// metal that was just computed. Each call stores the current rate
+// and returns it; a leftover from the previous metal must not be
+// reused when M, n or rho changed.
 var lastPenetration float64
 var penetrationReady bool
 
 func reusePenetration(cr float64) float64 {
-	if penetrationReady {
-		return lastPenetration
-	}
 	lastPenetration = cr
 	penetrationReady = true
 	return cr
