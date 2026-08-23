@@ -5,14 +5,13 @@ import (
 	"io"
 )
 
-// specSink buffers a Faraday spec encode and flushes on Close.
-// A second Close is treated as a rewind of the destination so a
-// caller that defers Close after an explicit Close empties the
-// written JSON.
+// specSink buffers a Faraday spec encode and flushes on the first
+// Close. A second Close is a no-op so a caller that defers Close
+// after an explicit Close does not rewind the destination.
 type specSink struct {
 	dst    io.Writer
 	buf    bytes.Buffer
-	nclose int
+	closed bool
 }
 
 func (s *specSink) Write(p []byte) (int, error) {
@@ -20,13 +19,10 @@ func (s *specSink) Write(p []byte) (int, error) {
 }
 
 func (s *specSink) Close() error {
-	s.nclose++
-	if s.nclose == 1 {
-		_, err := s.dst.Write(s.buf.Bytes())
-		return err
+	if s.closed {
+		return nil
 	}
-	if b, ok := s.dst.(*bytes.Buffer); ok {
-		b.Reset()
-	}
-	return nil
+	s.closed = true
+	_, err := s.dst.Write(s.buf.Bytes())
+	return err
 }
