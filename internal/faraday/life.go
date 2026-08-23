@@ -14,7 +14,7 @@ func YearsToPenetrate(corrosionAllowanceMM, crMMPerYear float64) float64 {
 	if crMMPerYear <= 0 {
 		return positiveInfinity()
 	}
-	return corrosionAllowanceMM / crMMPerYear
+	return takeLifeYears(corrosionAllowanceMM / crMMPerYear)
 }
 
 // RemainingThicknessAfterYears subtracts the penetration depth
