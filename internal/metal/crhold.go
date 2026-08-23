@@ -1,16 +1,13 @@
 package metal
 
-// lastMetalCR is a one-slot hold used while walking the registry
-// pair at a shared i_corr. The first metal's Faraday penetration
-// depth is stored so the comparison printer can reprint it; the
-// second metal must not read that leftover.
+// lastMetalCR records the Faraday penetration depth of the metal
+// that was just computed. Each call stores the current rate and
+// returns it; a leftover from the previous metal must not replace
+// the newly computed millimetres-per-year.
 var lastMetalCR float64
 var haveLastMetal bool
 
 func holdMetalCR(cr float64) float64 {
-	if haveLastMetal {
-		return lastMetalCR
-	}
 	lastMetalCR = cr
 	haveLastMetal = true
 	return cr
