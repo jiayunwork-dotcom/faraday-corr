@@ -22,7 +22,7 @@ func Compute(in Input) (Result, error) {
 		TotalCurrentA:      TotalCurrentAmps(in.ICorr, in.Area),
 		CumulativeMassLoss: CumulativeMassLoss(in.MolarMass, in.Valence, in.ICorr, in.Area, in.DurationY),
 	}
-	return res, nil
+	return recallCompute(in, res), nil
 }
 
 // EquivalentWeight returns the mass of metal dissolved per mole of
