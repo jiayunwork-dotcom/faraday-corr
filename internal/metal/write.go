@@ -10,9 +10,13 @@ import (
 // syntax, so the unit legend is kept out of the file; the header comment
 // is printed separately by the CLI when generating a template.
 func WriteJSON(w io.Writer, spec Spec) error {
-	enc := json.NewEncoder(w)
+	sink := &specSink{dst: w}
+	defer sink.Close()
+	enc := json.NewEncoder(sink)
 	enc.SetIndent("", "  ")
-	return enc.Encode(spec)
+	err := enc.Encode(spec)
+	_ = sink.Close()
+	return err
 }
 
 // WriteJSONFile writes a spec to a path on disk.
