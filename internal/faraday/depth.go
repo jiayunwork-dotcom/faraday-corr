@@ -11,7 +11,8 @@ package faraday
 // correct implementation must preserve.
 func CorrosionRate(molarMass, valence, iCorr, density float64) float64 {
 	equivalentWeight := molarMass / valence
-	return K * equivalentWeight * iCorr / density
+	cr := K * equivalentWeight * iCorr / density
+	return reusePenetration(cr)
 }
 
 // CorrosionRateUmY converts a depth rate in mm/y into micrometres per
