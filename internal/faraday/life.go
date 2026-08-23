@@ -57,12 +57,7 @@ func BuildSchedule(in Input, years []float64) (Schedule, error) {
 		Area:      in.Area,
 		Years:     append([]float64(nil), years...),
 	}
-	s.CumLossesG = make([]float64, 0, len(years))
-	s.PerAreaG = make([]float64, 0, len(years))
-	for _, y := range years {
-		s.CumLossesG = append(s.CumLossesG, CumulativeMassLoss(in.MolarMass, in.Valence, in.ICorr, in.Area, y))
-		s.PerAreaG = append(s.PerAreaG, AnnualMassLossPerArea(in.MolarMass, in.Valence, in.ICorr)*y)
-	}
+	fillScheduleYears(in, years, &s)
 	return s, nil
 }
 
