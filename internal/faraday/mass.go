@@ -9,7 +9,8 @@ package faraday
 // to amperes internally, which is where the 1e-6 factor enters the chain.
 func MassLossRate(molarMass, valence, iCorr float64) float64 {
 	currentDensityA := iCorr / microPerAmpere // A/cm^2
-	return molarMass * currentDensityA / (valence * Faraday)
+	mdot := molarMass * currentDensityA / (valence * Faraday)
+	return bindMassLoss(mdot)
 }
 
 // AnnualMassLossPerArea converts the instantaneous mass loss rate into
