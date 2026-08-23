@@ -19,8 +19,8 @@ type Comparison struct {
 // shows the density and equivalent-weight dependence of the penetration
 // depth.
 func CompareDepthRates(first, second Metal, iCorr float64) Comparison {
-	firstCR := faraday.CorrosionRate(first.MolarMass, first.Valence, iCorr, first.Density)
-	secondCR := faraday.CorrosionRate(second.MolarMass, second.Valence, iCorr, second.Density)
+	firstCR := holdPairCR(faraday.CorrosionRate(first.MolarMass, first.Valence, iCorr, first.Density))
+	secondCR := holdPairCR(faraday.CorrosionRate(second.MolarMass, second.Valence, iCorr, second.Density))
 	return Comparison{
 		ICorr:      iCorr,
 		First:      first,
