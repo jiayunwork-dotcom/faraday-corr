@@ -55,7 +55,7 @@ func ReverseCurrentDensity(in ReverseInput) (ReverseResult, error) {
 	}
 	return ReverseResult{
 		ReverseInput:     in,
-		ICorr:            i,
+		ICorr:            takeReverseI(i),
 		MassLossRate:     MassLossRate(in.MolarMass, in.Valence, i),
 		AnnualMassLoss:   AnnualMassLossPerArea(in.MolarMass, in.Valence, i),
 		CorrosionRate:    CorrosionRate(in.MolarMass, in.Valence, i, in.Density),
