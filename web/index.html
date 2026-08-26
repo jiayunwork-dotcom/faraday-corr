@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>均匀腐蚀 Faraday 速率核算</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>均匀腐蚀 Faraday 速率核算</h1>
+  <p>输入 i_corr、M、n、ρ，由后端按法拉第当量给出质量损失率与年腐蚀深度。</p>
+</header>
+<main>
+  <section class="panel">
+    <h2>金属与电流密度</h2>
+    <div class="form-grid">
+      <label>金属<input id="metal" value="Fe"></label>
+      <label>i_corr（μA/cm²）<input id="icorr" type="number" step="any" value="10"></label>
+      <label>M（g/mol）<input id="molar" type="number" step="any" value="55.845"></label>
+      <label>价数 n<input id="valence" type="number" step="any" value="2"></label>
+      <label>密度 ρ（g/cm³）<input id="rho" type="number" step="any" value="7.874"></label>
+      <label>面积（cm²）<input id="area" type="number" step="any" value="1"></label>
+      <label>暴露（年）<input id="years" type="number" step="any" value="1"></label>
+    </div>
+    <div class="actions">
+      <button id="btn-example" type="button">加载示例</button>
+      <button id="btn-rate" type="button">求速率 /api/rate</button>
+    </div>
+    <p id="hint" class="hint"></p>
+  </section>
+  <section class="panel" id="err-panel" hidden>
+    <h2>后端错误</h2>
+    <pre id="err-text"></pre>
+  </section>
+  <section class="panel" id="out-panel" hidden>
+    <h2>核算结果（/api/rate）</h2>
+    <table id="out-table"></table>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
