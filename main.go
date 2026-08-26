@@ -1,0 +1,321 @@
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+
+	"faraday-corr/internal/faraday"
+	"faraday-corr/internal/metal"
+	"faraday-corr/internal/report"
+	"faraday-corr/internal/server"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		fail("missing subcommand; run 'faraday-corr help' for usage")
+	}
+	cmd := os.Args[1]
+	rest := os.Args[2:]
+
+	switch cmd {
+	case "rate":
+		runRate(rest)
+	case "-http", "--http":
+		runHTTP(rest)
+		return
+	case "validate":
+		runValidate(rest)
+	case "metals":
+		runMetals(rest)
+	case "invariants":
+		runInvariants(rest)
+	case "reverse":
+		runReverse(rest)
+	case "schedule":
+		runSchedule(rest)
+	case "life":
+		runLife(rest)
+	case "template":
+		runTemplate(rest)
+	case "chain":
+		runChain(rest)
+	case "json":
+		runJSON(rest)
+	case "help", "-h", "--help":
+		runHelp()
+	default:
+		fail(fmt.Sprintf("unknown subcommand %q; run 'faraday-corr help' for usage", cmd))
+	}
+}
+
+func runRate(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	res, err := faraday.Compute(in)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteResult(os.Stdout, res, spec.Metal); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runValidate(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	if issues := metal.ValidateSpec(spec); len(issues) > 0 {
+		fail(metal.SummarizeIssues(issues).Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	fmt.Fprintln(os.Stdout, "OK: "+path)
+	if err := report.WriteSpecSummary(os.Stdout, in); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runMetals(args []string) {
+	if len(args) > 0 {
+		fail("metals takes no arguments")
+	}
+	if err := report.WriteAll(os.Stdout, metal.All(), 10.0); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runInvariants(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	checks, err := faraday.InvariantChecks(in)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteInvariants(os.Stdout, checks); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runHelp() {
+	if err := report.Usage(os.Stdout, "faraday-corr"); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runReverse(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	if spec.TargetCR != nil && spec.TargetLoss != nil {
+		fail("set at most one of target_cr_mm_y and target_annual_loss")
+	}
+	target := faraday.TargetCorrosionRate
+	if spec.TargetCR == nil && spec.TargetLoss == nil {
+		fail("spec needs a target_cr_mm_y or target_annual_loss for the reverse subcommand")
+	}
+	if spec.TargetLoss != nil {
+		target = faraday.TargetAnnualMassLoss
+	}
+	rin := faraday.ReverseInput{
+		MolarMass: in.MolarMass,
+		Valence:   in.Valence,
+		Density:   in.Density,
+		Target:    target,
+	}
+	if target == faraday.TargetCorrosionRate {
+		rin.CR = *spec.TargetCR
+	} else {
+		rin.Annual = *spec.TargetLoss
+	}
+	res, err := faraday.ReverseCurrentDensity(rin)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteReverse(os.Stdout, res); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runSchedule(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	if in.Area == 0 {
+		fail("schedule needs an area in the spec")
+	}
+	sched, err := faraday.BuildSchedule(in, report.StandardScheduleYears)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteSchedule(os.Stdout, sched); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runLife(args []string) {
+	if len(args) == 0 {
+		fail("life needs a specification file; run 'faraday-corr help' for usage")
+	}
+	path := args[0]
+	allowance := 1.0
+	thickness := 10.0
+	years := 5.0
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--allowance":
+			if i+1 >= len(args) {
+				fail("--allowance needs a value")
+			}
+			i++
+			if _, err := fmt.Sscanf(args[i], "%f", &allowance); err != nil {
+				fail("bad --allowance value")
+			}
+		case "--thickness":
+			if i+1 >= len(args) {
+				fail("--thickness needs a value")
+			}
+			i++
+			if _, err := fmt.Sscanf(args[i], "%f", &thickness); err != nil {
+				fail("bad --thickness value")
+			}
+		case "--years":
+			if i+1 >= len(args) {
+				fail("--years needs a value")
+			}
+			i++
+			if _, err := fmt.Sscanf(args[i], "%f", &years); err != nil {
+				fail("bad --years value")
+			}
+		default:
+			fail(fmt.Sprintf("unknown life flag %q", args[i]))
+		}
+	}
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	res, err := faraday.Compute(in)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteLife(os.Stdout, res.CorrosionRate, allowance, thickness, years); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runChain(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	chain, err := faraday.VerifyUnitChain(in)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteChain(os.Stdout, chain); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runJSON(args []string) {
+	path := requireSpecPath(args)
+	spec, err := metal.LoadFile(path)
+	if err != nil {
+		fail(err.Error())
+	}
+	in, err := metal.ToInput(spec)
+	if err != nil {
+		fail(err.Error())
+	}
+	res, err := faraday.Compute(in)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := report.WriteResultJSON(os.Stdout, res); err != nil {
+		fail(err.Error())
+	}
+}
+
+func runTemplate(args []string) {
+	metalName := ""
+	if len(args) > 1 {
+		fail("template takes at most one metal symbol or name")
+	}
+	if len(args) == 1 {
+		metalName = args[0]
+	}
+	spec, err := metal.TemplateSpec(metalName)
+	if err != nil {
+		fail(err.Error())
+	}
+	if err := metal.WriteJSON(os.Stdout, spec); err != nil {
+		fail(err.Error())
+	}
+}
+
+func requireSpecPath(args []string) string {
+	if len(args) < 1 {
+		fail("expected a specification file argument; run 'faraday-corr help' for usage")
+	}
+	return args[0]
+}
+
+func fail(msg string) {
+	fmt.Fprintln(os.Stderr, "faraday-corr: error:", msg)
+	os.Exit(1)
+}
+
+func runHTTP(args []string) {
+	addr := ":8080"
+	if len(args) > 0 {
+		addr = args[0]
+	}
+	if len(args) > 1 {
+		fail("-http accepts at most one listen address")
+	}
+	handler := server.New("web", "example/fe-seawater.json")
+	fmt.Printf("faraday-corr HTTP on http://localhost%s\n", addr)
+	if err := http.ListenAndServe(addr, handler); err != nil {
+		fail("HTTP server: " + err.Error())
+	}
+}
